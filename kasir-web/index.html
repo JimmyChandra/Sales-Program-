@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Program Penjualan Kasir</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧾</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f4f5;--surface:#fff;--border:#e4e4e7;--border2:#d4d4d8;
+  --text:#18181b;--text2:#71717a;--text3:#a1a1aa;
+  --primary:#18181b;--primary-text:#fff;
+  --green:#166534;--green-bg:#dcfce7;
+  --yellow:#854d0e;--yellow-bg:#fef9c3;
+  --red:#991b1b;--red-bg:#fee2e2;
+  --blue:#1e40af;--blue-bg:#dbeafe;
+  --r:8px;--r2:12px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+input,select,button{font-family:inherit}
+/* ═══ LOGIN ═══ */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#18181b,#3f3f46)}
+.login-box{background:#fff;border-radius:16px;padding:36px 32px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-box h1{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-box .sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:24px}
+.login-box label{font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:5px}
+.login-box input{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:var(--r);font-size:14px;margin-bottom:14px}
+.login-box input:focus{outline:none;border-color:var(--primary)}
+.login-box button{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer}
+.login-box button:hover{opacity:.88}
+.login-err{background:var(--red-bg);color:var(--red);padding:9px 12px;border-radius:var(--r);font-size:12px;margin-bottom:14px;display:none}
+.login-hint{margin-top:18px;padding:11px;background:var(--bg);border-radius:var(--r);font-size:11px;color:var(--text2);text-align:center}
+/* ═══ APP SHELL ═══ */
+#app{display:none;height:100vh;flex-direction:column;overflow:hidden}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 14px;display:flex;align-items:center;gap:4px;height:52px;flex-shrink:0}
+.tb-logo{font-size:15px;font-weight:700;margin-right:10px;white-space:nowrap}
+.hamburger{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;color:var(--text)}
+.nav-links{display:flex;gap:3px;overflow-x:auto}
+.nb{padding:7px 13px;font-size:13px;border:none;border-radius:var(--r);background:transparent;cursor:pointer;color:var(--text2);font-weight:500;white-space:nowrap}
+.nb:hover{background:var(--bg)}
+.nb.active{background:var(--primary);color:var(--primary-text)}
+.tb-r{margin-left:auto;display:flex;gap:7px;align-items:center}
+.user-chip{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.role-badge{font-size:10px;padding:2px 7px;border-radius:99px;font-weight:600;text-transform:uppercase}
+.role-admin{background:var(--blue-bg);color:var(--blue)}
+.role-kasir{background:var(--green-bg);color:var(--green)}
+.logout-btn{padding:6px 11px;font-size:12px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer;color:var(--text2)}
+.logout-btn:hover{background:var(--bg)}
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.page{display:none;height:100%;overflow:hidden}
+.page.active{display:flex;flex-direction:column}
+/* ═══ KASIR ═══ */
+.kl{display:grid;grid-template-columns:1fr 330px;height:100%;overflow:hidden}
+.kp{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.ph{padding:11px 13px 9px;border-bottom:1px solid var(--border);flex-shrink:0}
+.pt{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
+.sb{display:flex;gap:6px}
+.sb input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--bg)}
+.sb select{padding:7px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;background:var(--bg)}
+.scan-btn{padding:8px 11px;border:1px solid var(--border2);border-radius:var(--r);background:var(--primary);color:#fff;cursor:pointer;font-size:13px;white-space:nowrap}
+.pg{padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px;overflow-y:auto;flex:1}
+.pc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:9px;cursor:pointer;transition:border-color .12s,transform .08s;user-select:none}
+.pc:hover{border-color:var(--primary)}
+.pc:active{transform:scale(.97)}
+.pc .pcat{font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:2px}
+.pc .pn{font-size:12px;font-weight:500;line-height:1.3;margin-bottom:4px}
+.pc .pp{font-size:12px;color:var(--text2)}
+.pc .ps{font-size:11px;color:var(--text3);margin-top:2px}
+.pc .ps.low{color:var(--yellow)}
+.pc.oos{opacity:.4;pointer-events:none}
+.cp{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.cl{flex:1;overflow-y:auto;padding:8px 12px}
+.cr{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid var(--border)}
+.cr:last-child{border-bottom:none}
+.ci{flex:1;min-width:0}
+.cn{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.csb{font-size:11px;color:var(--text2)}
+.qc{display:flex;align-items:center;gap:3px;flex-shrink:0}
+.qb{width:22px;height:22px;border-radius:50%;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.qb:hover{background:var(--border2)}
+.qn{font-size:13px;font-weight:600;min-width:22px;text-align:center}
+.ct{font-size:12px;font-weight:500;min-width:65px;text-align:right;flex-shrink:0}
+.xb{background:none;border:none;cursor:pointer;color:var(--text3);font-size:17px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;line-height:1}
+.xb:hover{background:var(--red-bg);color:var(--red)}
+.cf{padding:11px 12px;border-top:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.sr{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px}
+.st{display:flex;justify-content:space-between;font-size:15px;font-weight:700;margin:7px 0}
+.ig{margin-bottom:7px}
+.il{font-size:11px;color:var(--text2);margin-bottom:3px}
+.ig input,.ig select{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:13px}
+.kb{background:var(--green-bg);border-radius:var(--r);padding:7px 10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.kl2{font-size:11px;color:var(--green);font-weight:500}
+.kv{font-size:14px;font-weight:700;color:var(--green)}
+.btn-bayar{width:100%;padding:10px;background:var(--primary);color:var(--primary-text);border:none;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:5px}
+.btn-bayar:disabled{opacity:.3;cursor:not-allowed}
+.btn-sec{width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:var(--r);font-size:12px;color:var(--text2);cursor:pointer}
+.btn-sec:hover{background:var(--bg)}
+.empty{text-align:center;padding:30px 0;color:var(--text3)}
+.empty .ei{font-size:32px;margin-bottom:8px}
+/* ═══ INNER PAGES ═══ */
+.ip{padding:14px;overflow-y:auto;flex:1}
+.ph2{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.ph2 h2{font-size:15px;font-weight:600}
+.btn-p{padding:7px 14px;background:var(--primary);color:var(--primary-text);border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px}
+.btn-p:hover{opacity:.85}
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:auto;max-height:calc(100vh - 210px)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:9px 11px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);background:var(--bg);position:sticky;top:0}
+td{padding:8px 11px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.bg{background:var(--green-bg);color:var(--green)}
+.by{background:var(--yellow-bg);color:var(--yellow)}
+.br{background:var(--red-bg);color:var(--red)}
+.bb{background:var(--blue-bg);color:var(--blue)}
+.ab{display:flex;gap:4px}
+.abtn{padding:3px 9px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer;color:var(--text2)}
+.abtn:hover{background:var(--bg)}
+.abtn.r:hover{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+.abtn.g:hover{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.ei2{width:100%;padding:5px 8px;border:1px solid var(--border2);border-radius:6px;font-size:12px}
+.tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto}
+.tab{padding:5px 13px;font-size:12px;border:1px solid var(--border);border-radius:var(--r);background:transparent;cursor:pointer;color:var(--text2);font-weight:500;white-space:nowrap}
+.tab.active{background:var(--primary);color:var(--primary-text);border-color:var(--primary)}
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:12px}
+.fc h3{font-size:13px;font-weight:600;margin-bottom:11px}
+.fg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.fgg{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fg2{display:flex;flex-direction:column;gap:3px}
+.fg2 label{font-size:11px;color:var(--text2);font-weight:500}
+.fg2 input,.fg2 select{padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:13px}
+.full{grid-column:1/-1}
+.mg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:13px}
+.mc .ml{font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+.mc .mv{font-size:20px;font-weight:700}
+.mc .ms{font-size:11px;color:var(--text3);margin-top:2px}
+.fr{display:flex;gap:7px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.fr input,.fr select{padding:6px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:12px}
+.fr input{flex:1;min-width:140px}
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:14px;height:260px}
+/* ═══ STRUK / PRINT ═══ */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999;padding:16px}
+.sb2{background:#fff;border-radius:var(--r2);padding:18px 22px;width:290px;font-family:'Courier New',monospace;font-size:12px;color:#000;max-height:90vh;overflow-y:auto}
+.sh{text-align:center;margin-bottom:9px}
+.sh .sn{font-size:14px;font-weight:bold}
+.sh .ss{font-size:11px;color:#555}
+.sdv{border:none;border-top:1px dashed #aaa;margin:7px 0}
+.si{display:flex;justify-content:space-between;margin:2px 0}
+.stot{display:flex;justify-content:space-between;font-weight:bold;font-size:13px;margin:3px 0}
+.sf{text-align:center;margin-top:9px;font-size:11px;color:#666}
+.mbtns{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+.mbtns button{flex:1;padding:8px;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:500;min-width:85px}
+.bp{background:var(--primary);color:#fff}
+.bp2{background:var(--blue);color:#fff}
+.bc{background:var(--bg);border:1px solid var(--border);color:var(--text)}
+#scan-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1100;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px}
+#scan-reader{width:100%;max-width:400px;background:#fff;border-radius:var(--r2);overflow:hidden}
+.scan-close{margin-top:14px;padding:9px 20px;background:#fff;border:none;border-radius:var(--r);cursor:pointer;font-weight:500}
+.toast{position:fixed;bottom:18px;right:18px;left:18px;max-width:320px;margin-left:auto;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.ok{background:#166534;color:#fff}
+.toast.err{background:#991b1b;color:#fff}
+.toast.info{background:#1a1a1a;color:#fff}
+/* ═══ MOBILE ═══ */
+@media (max-width:860px){
+  .hamburger{display:block}
+  .nav-links{display:none;position:fixed;top:52px;left:0;right:0;background:var(--surface);border-bottom:1px solid var(--border);flex-direction:column;padding:8px;z-index:500;box-shadow:0 8px 20px rgba(0,0,0,.08)}
+  .nav-links.open{display:flex}
+  .nb{width:100%;text-align:left;padding:10px 13px}
+  .kl{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .kp{border-right:none;border-bottom:1px solid var(--border);max-height:48vh}
+  .cp{max-height:52vh}
+  .fg,.fgg{grid-template-columns:1fr}
+  .mg{grid-template-columns:1fr 1fr}
+  .tb-logo{font-size:13px}
+  .user-chip span.uname{display:none}
+}
+@media (max-width:480px){
+  .mg{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>🧾 Program Penjualan Kasir</h1>
+    <div class="sub">Masuk untuk melanjutkan</div>
+    <div class="login-err" id="login-err"></div>
+    <label>Username</label>
+    <input type="text" id="li-user" placeholder="username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <label>Password</label>
+    <input type="password" id="li-pass" placeholder="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button onclick="doLogin()" id="login-btn">Masuk</button>
+    <div class="login-hint" id="login-hint">Menghubungkan ke server...</div>
+  </div>
+</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app">
+  <div class="topbar">
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+    <span class="tb-logo">🧾 Kasir</span>
+    <div class="nav-links" id="nav-links">
+      <button class="nb active" onclick="goto('kasir')">Kasir</button>
+      <button class="nb" onclick="goto('produk')" data-role="admin">Produk</button>
+      <button class="nb" onclick="goto('buku')">Riwayat</button>
+      <button class="nb" onclick="goto('laporan')">Laporan</button>
+      <button class="nb" onclick="goto('pengguna')" data-role="admin">Pengguna</button>
+      <button class="nb" onclick="goto('setting')" data-role="admin">Pengaturan</button>
+    </div>
+    <div class="tb-r">
+      <span class="user-chip"><span class="uname" id="chip-nama"></span><span class="role-badge" id="chip-role"></span></span>
+      <button class="logout-btn" onclick="doLogout()">Keluar</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- ═══ KASIR ═══ -->
+    <div id="page-kasir" class="page active">
+      <div class="kl">
+        <div class="kp">
+          <div class="ph">
+            <div class="pt">Katalog Produk</div>
+            <div class="sb">
+              <input id="ksrc" placeholder="Cari nama / barcode..." oninput="filterProd()" onkeydown="if(event.key==='Enter')tryBarcodeSearch()"/>
+              <select id="kkat" onchange="filterProd()"><option value="">Semua</option></select>
+              <button class="scan-btn" onclick="openScanner()">📷 Scan</button>
+            </div>
+          </div>
+          <div class="pg" id="pgrid"></div>
+        </div>
+        <div class="cp">
+          <div class="ph"><div class="pt">Keranjang Belanja</div></div>
+          <div class="cl" id="clist"><div class="empty"><div class="ei">🛒</div><p>Pilih produk atau scan barcode</p></div></div>
+          <div class="cf" id="cfoot" style="display:none">
+            <div class="sr"><span>Subtotal</span><span id="ssub">Rp 0</span></div>
+            <div class="st"><span>Total</span><span id="stot">Rp 0</span></div>
+            <div class="ig"><div class="il">Metode Bayar</div>
+              <select id="metode" onchange="calcK()"><option>Tunai</option><option>Transfer</option><option>QRIS</option><option>Kartu Debit</option></select>
+            </div>
+            <div class="ig"><div class="il">Uang Bayar</div>
+              <input type="number" id="ubayar" placeholder="0" min="0" oninput="calcK()"/>
+            </div>
+            <div class="kb" id="kbox" style="display:none">
+              <span class="kl2">Kembalian</span><span class="kv" id="kval">Rp 0</span>
+            </div>
+            <button class="btn-bayar" id="btnbayar" onclick="prosesBayar()" disabled>Proses Pembayaran</button>
+            <button class="btn-sec" onclick="clearCart()">Kosongkan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PRODUK ═══ -->
+    <div id="page-produk" class="page">
+      <div class="ip">
+        <div class="tabs">
+          <button class="tab active" onclick="setPT('list')">Daftar Produk</button>
+          <button class="tab" onclick="setPT('add')">+ Tambah</button>
+        </div>
+        <div id="pt-list">
+          <div class="ph2"><h2>Daftar Produk</h2>
+            <input id="psrc" placeholder="Cari produk / barcode..." oninput="renderPT()" style="padding:6px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;width:220px"/>
+          </div>
+          <div class="tw">
+            <table><thead><tr><th>ID</th><th>Barcode</th><th>Nama</th><th>Tipe</th><th>Harga Jual</th><th>Harga Beli</th><th>Stok</th><th>Satuan</th><th>Aksi</th></tr></thead>
+            <tbody id="ptbody"></tbody></table>
+          </div>
+        </div>
+        <div id="pt-add" style="display:none">
+          <div class="fc"><h3>Tambah / Edit Produk</h3>
+            <div class="fg">
+              <div class="fg2 full"><label>Nama Produk *</label><input id="npn" placeholder="Contoh: Aqua 600ml"/></div>
+              <div class="fg2"><label>Barcode</label><div style="display:flex;gap:6px"><input id="npbc" placeholder="Scan atau ketik manual" style="flex:1"/><button class="scan-btn" style="padding:6px 10px" onclick="openScanner('npbc')">📷</button></div></div>
+              <div class="fg2"><label>Tipe / Kategori</label><input id="npk" placeholder="Makanan / Minuman / dll" list="kat-list"/><datalist id="kat-list"></datalist></div>
+              <div class="fg2"><label>Satuan</label><input id="nps" value="pcs" placeholder="pcs/botol/bungkus"/></div>
+              <div class="fg2"><label>Stok *</label><input id="npst" type="number" placeholder="0" min="0"/></div>
+              <div class="fg2"><label>Harga Jual *</label><input id="nph" type="number" placeholder="0" min="0"/></div>
+              <div class="fg2"><label>Harga Beli</label><input id="nphb" type="number" placeholder="0" min="0"/></div>
+            </div>
+            <input type="hidden" id="npid"/>
+            <div style="margin-top:11px;display:flex;gap:7px">
+              <button class="btn-p" onclick="simpanProduk()" id="btn-simpan-produk">Simpan Produk</button>
+              <button class="btn-sec" style="width:auto;padding:7px 14px" onclick="batalEditProduk()">Batal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ RIWAYAT / PEMBUKUAN ═══ -->
+    <div id="page-buku" class="page">
+      <div class="ip">
+        <div class="ph2"><h2>Riwayat Transaksi</h2></div>
+        <div class="fr">
+          <input type="date" id="b-dari"/>
+          <span style="font-size:12px;color:var(--text2)">s/d</span>
+          <input type="date" id="b-sampai"/>
+          <button class="btn-p" onclick="renderBuku()">Filter</button>
+        </div>
+        <div class="tw">
+          <table><thead><tr><th>No Struk</th><th>Tanggal</th><th>Kasir</th><th>Subtotal</th><th>Total</th><th>Metode</th><th></th></tr></thead>
+          <tbody id="btbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ LAPORAN ═══ -->
+    <div id="page-laporan" class="page">
+      <div class="ip">
+        <div class="ph2"><h2>Laporan Penjualan</h2></div>
+        <div class="mg" id="mgrid"></div>
+        <div class="chart-wrap"><canvas id="chart7"></canvas></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="tw"><div style="padding:11px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">🏆 Produk Terlaris (bulan ini)</div>
+            <table><thead><tr><th>Produk</th><th>Terjual</th><th>Nominal</th></tr></thead><tbody id="terlaris"></tbody></table>
+          </div>
+          <div class="tw"><div style="padding:11px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">⚠️ Stok Menipis</div>
+            <table><thead><tr><th>Produk</th><th>Stok</th><th>Satuan</th></tr></thead><tbody id="stipis"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PENGGUNA ═══ -->
+    <div id="page-pengguna" class="page">
+      <div class="ip">
+        <div class="ph2"><h2>Manajemen Pengguna</h2><button class="btn-p" onclick="showAddUser()">+ Tambah Pengguna</button></div>
+        <div class="fc" id="userform" style="display:none">
+          <h3 id="uf-title">Tambah Pengguna</h3>
+          <input type="hidden" id="u-id"/>
+          <div class="fgg">
+            <div class="fg2"><label>Username *</label><input id="u-username"/></div>
+            <div class="fg2"><label>Nama Lengkap</label><input id="u-nama"/></div>
+            <div class="fg2"><label>Password <span id="u-pass-note">*</span></label><input id="u-password" type="password" placeholder="Min 6 karakter"/></div>
+            <div class="fg2"><label>Role</label><select id="u-role"><option value="kasir">Kasir</option><option value="admin">Admin</option></select></div>
+          </div>
+          <div style="margin-top:11px;display:flex;gap:7px">
+            <button class="btn-p" onclick="simpanUser()">Simpan</button>
+            <button class="btn-sec" style="width:auto;padding:7px 14px" onclick="document.getElementById('userform').style.display='none'">Batal</button>
+          </div>
+        </div>
+        <div class="tw">
+          <table><thead><tr><th>ID</th><th>Username</th><th>Nama</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody id="utbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PENGATURAN ═══ -->
+    <div id="page-setting" class="page">
+      <div class="ip">
+        <div class="ph2"><h2>Pengaturan</h2></div>
+        <div class="fc"><h3>Koneksi Google Sheets (Google Apps Script API)</h3>
+          <div class="fg2" style="margin-bottom:9px"><label>URL Web App</label><input id="set-apiurl" placeholder="https://script.google.com/macros/s/XXXX/exec"/></div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <button class="btn-p" onclick="saveApiUrl()">Simpan URL</button>
+            <button class="btn-sec" style="width:auto;padding:7px 14px" onclick="testApiConn()">Test Koneksi</button>
+          </div>
+          <div id="conn-status" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
+        </div>
+        <div class="fc"><h3>Informasi Toko (untuk struk)</h3>
+          <div class="fg">
+            <div class="fg2"><label>Nama Toko</label><input id="snm" value="Toko Sejahtera"/></div>
+            <div class="fg2"><label>Alamat</label><input id="sal" value="Jl. Raya Utama No. 1"/></div>
+            <div class="fg2"><label>Telepon</label><input id="stp" value="(061) 123-4567"/></div>
+            <div class="fg2 full"><label>Pesan Footer Struk</label><input id="sft" value="Terima kasih atas kunjungan Anda!"/></div>
+          </div>
+          <button class="btn-p" style="margin-top:11px" onclick="saveSetting()">Simpan Pengaturan</button>
+        </div>
+        <div class="fc"><h3>🖨 Printer Thermal 58mm (TM58M)</h3>
+          <p style="font-size:12px;color:var(--text2);margin-bottom:9px">Pilih metode cetak sesuai cara printer kamu terpasang.</p>
+          <div class="fg2" style="margin-bottom:9px">
+            <label>Metode Cetak</label>
+            <select id="set-printmode" onchange="savePrintMode()">
+              <option value="browser">Print biasa (dialog browser, printer terpasang sebagai printer sistem)</option>
+              <option value="bluetooth">Bluetooth langsung (ESC/POS, khusus Chrome Android/Desktop)</option>
+            </select>
+          </div>
+          <button class="btn-sec" style="width:auto;padding:7px 14px" onclick="pairBluetoothPrinter()">🔗 Pasangkan Printer Bluetooth</button>
+          <div id="bt-status" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
+          <div style="margin-top:12px;padding:10px;background:var(--blue-bg);border-radius:var(--r);font-size:12px;color:var(--blue)">
+            <strong>Catatan:</strong> Mode Bluetooth hanya berjalan di Chrome (Android/Desktop) karena pakai Web Bluetooth API — tidak didukung Safari/iPhone. Untuk iPhone, gunakan mode "Print biasa" dengan printer yang sudah terpasang lewat AirPrint/driver.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCANNER OVERLAY ═══ -->
+<div id="scan-overlay">
+  <div id="scan-reader"></div>
+  <button class="scan-close" onclick="closeScanner()">Tutup Scanner</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let API_URL = localStorage.getItem('kasir_api_url') || '';
+let currentUser = JSON.parse(sessionStorage.getItem('kasir_user') || 'null');
+let authToken = sessionStorage.getItem('kasir_token') || '';
+let prods = [], cart = [], editingProdId = null, curBT = null;
+let cfg = JSON.parse(localStorage.getItem('kasir_cfg') || '{"nm":"Toko Sejahtera","al":"Jl. Raya Utama No. 1","tp":"(061) 123-4567","ppn":0,"ft":"Terima kasih atas kunjungan Anda!","printMode":"browser"}');
+cfg.ppn = 0;
+let btDevice = null, btCharacteristic = null;
+let html5QrCode = null;
+
+const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+
+// ═══════════════════════════════════════════════════════════════
+// API CALL (ke Google Apps Script)
+// ═══════════════════════════════════════════════════════════════
+async function api(action, payload) {
+  if (!API_URL) throw new Error('URL API belum diatur. Buka menu Pengaturan.');
+  let res;
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // hindari CORS preflight di Apps Script
+      body: JSON.stringify({ action, token: authToken, ...payload }),
+    });
+  } catch (e) {
+    if (location.protocol === 'file:') {
+      throw new Error('Aplikasi dibuka sebagai file lokal. Buka melalui link hosting HTTPS agar browser smartphone mengizinkan koneksi ke Google Sheets.');
+    }
+    throw new Error('Koneksi ke Google Sheets diblokir atau gagal. Pastikan URL Apps Script benar, deployment dapat diakses, dan gunakan aplikasi melalui link HTTPS.');
+  }
+  const data = await res.json();
+  if (data.ok === false) throw new Error(data.error || 'Terjadi kesalahan');
+  return data;
+}
+
+function toast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  clearTimeout(t._t); t._t = setTimeout(() => t.className = 'toast', 2800);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOGIN / LOGOUT
+// ═══════════════════════════════════════════════════════════════
+async function initLoginScreen() {
+  document.getElementById('set-apiurl').value = API_URL;
+  const hint = document.getElementById('login-hint');
+  if (!API_URL) {
+    hint.innerHTML = 'URL API belum diatur. <a href="#" onclick="promptApiUrl();return false;" style="color:#2563eb">Atur sekarang</a>';
+    return;
+  }
+  hint.textContent = 'Menghubungkan ke server...';
+  try {
+    await api('ping', {});
+    hint.textContent = 'Terhubung ke server ✓';
+  } catch (e) {
+    hint.innerHTML = 'Gagal konek: ' + e.message + ' — <a href="#" onclick="promptApiUrl();return false;" style="color:#2563eb">Ganti URL</a>';
+  }
+  if (currentUser) { showApp(); }
+}
+
+function promptApiUrl() {
+  const url = prompt('Masukkan URL Web App Google Apps Script:', API_URL);
+  if (url) { API_URL = url.trim(); localStorage.setItem('kasir_api_url', API_URL); location.reload(); }
+}
+
+async function doLogin() {
+  const username = document.getElementById('li-user').value.trim();
+  const password = document.getElementById('li-pass').value;
+  const errBox = document.getElementById('login-err');
+  errBox.style.display = 'none';
+  if (!username || !password) { errBox.textContent = 'Isi username dan password'; errBox.style.display = ''; return; }
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Memeriksa...';
+  try {
+    const res = await api('login', { username, password });
+    currentUser = res.user;
+    authToken = res.token;
+    sessionStorage.setItem('kasir_user', JSON.stringify(currentUser));
+    sessionStorage.setItem('kasir_token', authToken);
+    showApp();
+  } catch (e) {
+    errBox.textContent = e.message; errBox.style.display = '';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Masuk';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('kasir_user');
+  sessionStorage.removeItem('kasir_token');
+  currentUser = null;
+  location.reload();
+}
+
+async function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('chip-nama').textContent = currentUser.nama || currentUser.username;
+  document.getElementById('chip-role').textContent = currentUser.role;
+  document.getElementById('chip-role').className = 'role-badge ' + (currentUser.role === 'admin' ? 'role-admin' : 'role-kasir');
+  document.querySelectorAll('[data-role="admin"]').forEach(el => el.style.display = currentUser.role === 'admin' ? '' : 'none');
+  await loadProduk();
+  loadCfgToForm();
+}
+
+function toggleNav() { document.getElementById('nav-links').classList.toggle('open'); }
+
+function goto(p) {
+  if ((p === 'produk' || p === 'pengguna' || p === 'setting') && currentUser.role !== 'admin') { toast('Hanya admin yang bisa akses halaman ini', 'err'); return; }
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  const names = ['kasir','produk','buku','laporan','pengguna','setting'];
+  document.querySelectorAll('.nb')[names.indexOf(p)]?.classList.add('active');
+  document.getElementById('nav-links').classList.remove('open');
+  if (p === 'produk') renderPT();
+  if (p === 'buku') renderBuku();
+  if (p === 'laporan') renderLaporan();
+  if (p === 'pengguna') renderUsers();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUK & KASIR
+// ═══════════════════════════════════════════════════════════════
+async function loadProduk() {
+  try {
+    const res = await api('getProduk', {});
+    prods = res.data || [];
+    renderPG(); buildKat();
+  } catch (e) { toast('Gagal memuat produk: ' + e.message, 'err'); }
+}
+
+function buildKat() {
+  const kats = [...new Set(prods.map(p => p.tipe).filter(Boolean))].sort();
+  document.getElementById('kkat').innerHTML = '<option value="">Semua</option>' + kats.map(k => `<option>${k}</option>`).join('');
+  document.getElementById('kat-list').innerHTML = kats.map(k => `<option value="${k}">`).join('');
+}
+
+function renderPG() {
+  const q = (document.getElementById('ksrc')?.value || '').toLowerCase();
+  const kat = document.getElementById('kkat')?.value || '';
+  const g = document.getElementById('pgrid');
+  const f = prods.filter(p => (!q || p.nama.toLowerCase().includes(q) || String(p.barcode).includes(q)) && (!kat || p.tipe === kat));
+  if (!f.length) { g.innerHTML = '<p style="font-size:12px;color:var(--text3);padding:10px">Tidak ditemukan</p>'; return; }
+  g.innerHTML = f.map(p => `<div class="pc${p.stok<=0?' oos':''}" onclick="addCart(${p.id})">
+    <div class="pcat">${p.tipe||'Umum'}</div>
+    <div class="pn">${p.nama}</div>
+    <div class="pp">${fmt(p.harga_jual)}</div>
+    <div class="ps${p.stok<=5?' low':''}">${p.stok<=0?'HABIS':p.stok<=5?`⚠ ${p.stok}`:`Stok: ${p.stok}`} ${p.satuan||''}</div>
+  </div>`).join('');
+}
+
+function filterProd() { renderPG(); }
+
+function tryBarcodeSearch() {
+  const q = document.getElementById('ksrc').value.trim();
+  const p = prods.find(x => String(x.barcode) === q);
+  if (p) { addCart(p.id); document.getElementById('ksrc').value = ''; renderPG(); }
+}
+
+function addCart(id) {
+  const p = prods.find(x => x.id === id);
+  if (!p || p.stok <= 0) { if(p) toast('Stok habis', 'err'); return; }
+  const ex = cart.find(c => c.id === id);
+  if (ex) { if (ex.qty >= p.stok) { toast('Stok tidak cukup', 'err'); return; } ex.qty++; }
+  else cart.push({ ...p, qty: 1 });
+  renderCart();
+}
+
+function changeQty(id, d) {
+  const it = cart.find(c => c.id === id);
+  if (!it) return;
+  const nq = it.qty + d;
+  if (nq < 1) { removeCart(id); return; }
+  if (nq > it.stok) { toast('Stok tidak cukup', 'err'); return; }
+  it.qty = nq; renderCart();
+}
+
+function removeCart(id) { cart = cart.filter(c => c.id !== id); renderCart(); }
+function clearCart() { cart = []; document.getElementById('ubayar').value = ''; renderCart(); }
+
+function renderCart() {
+  const el = document.getElementById('clist'), ft = document.getElementById('cfoot');
+  if (!cart.length) { el.innerHTML = '<div class="empty"><div class="ei">🛒</div><p>Pilih produk atau scan barcode</p></div>'; ft.style.display = 'none'; return; }
+  el.innerHTML = cart.map(c => `<div class="cr">
+    <div class="ci"><div class="cn">${c.nama}</div><div class="csb">${fmt(c.harga_jual)} × ${c.stok} tersedia</div></div>
+    <div class="qc"><button class="qb" onclick="changeQty(${c.id},-1)">−</button><span class="qn">${c.qty}</span><button class="qb" onclick="changeQty(${c.id},1)">+</button></div>
+    <span class="ct">${fmt(c.harga_jual*c.qty)}</span>
+    <button class="xb" onclick="removeCart(${c.id})">×</button>
+  </div>`).join('');
+  ft.style.display = '';
+  const sub = cart.reduce((s, c) => s + c.harga_jual * c.qty, 0);
+  const ppn = 0; const tot = sub;
+  document.getElementById('ssub').textContent = fmt(sub);
+  document.getElementById('stot').textContent = fmt(tot);
+  calcK();
+}
+
+function calcK() {
+  const sub = cart.reduce((s, c) => s + c.harga_jual * c.qty, 0);
+  const tot = sub;
+  const bayar = parseFloat(document.getElementById('ubayar').value) || 0;
+  const nonTunai = document.getElementById('metode').value !== 'Tunai';
+  const ok = nonTunai ? tot > 0 : bayar >= tot && tot > 0;
+  document.getElementById('kbox').style.display = (!nonTunai && ok) ? 'flex' : 'none';
+  if (!nonTunai && ok) document.getElementById('kval').textContent = fmt(bayar - tot);
+  document.getElementById('btnbayar').disabled = !ok;
+}
+
+async function prosesBayar() {
+  if (!cart.length) return;
+  const sub = cart.reduce((s, c) => s + c.harga_jual * c.qty, 0);
+  const ppn = 0; const tot = sub;
+  const bayar = parseFloat(document.getElementById('ubayar').value) || tot;
+  const metode = document.getElementById('metode').value;
+  const noStruk = 'TRX' + Date.now().toString().slice(-8);
+  const header = { no_struk: noStruk, kasir: currentUser.username, subtotal: sub, ppn, total: tot, bayar, kembalian: Math.max(0, bayar - tot), metode };
+  const items = cart.map(c => ({ produk_id: c.id, barcode: c.barcode, nama: c.nama, harga: c.harga_jual, qty: c.qty, subtotal: c.harga_jual * c.qty }));
+  const btn = document.getElementById('btnbayar');
+  btn.disabled = true; btn.textContent = 'Memproses...';
+  try {
+    await api('createTransaksi', { header, items });
+    tampilStruk({ cart: cart.map(c => ({ ...c })), sub, ppn, tot, bayar, kem: Math.max(0, bayar - tot), noStruk, metode });
+    cart = []; document.getElementById('ubayar').value = ''; renderCart();
+    await loadProduk();
+  } catch (e) {
+    toast('Transaksi gagal: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Proses Pembayaran';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STRUK & PRINT (58mm)
+// ═══════════════════════════════════════════════════════════════
+function tampilStruk(tx) {
+  const rows = tx.cart.map(c => `<div class="si"><span>${c.nama}</span></div><div class="si"><span style="color:#666">${c.qty} x ${fmt(c.harga_jual)}</span><span>${fmt(c.harga_jual*c.qty)}</span></div>`).join('');
+  const html = `<div class="mo" id="mo"><div class="sb2" id="struk-content">
+    <div class="sh"><div class="sn">${cfg.nm}</div><div class="ss">${cfg.al}</div><div class="ss">Telp: ${cfg.tp}</div></div>
+    <hr class="sdv">
+    <div class="si"><span>No Struk</span><span>${tx.noStruk}</span></div>
+    <div class="si"><span>Tanggal</span><span>${new Date().toLocaleString('id-ID')}</span></div>
+    <div class="si"><span>Kasir</span><span>${currentUser.nama||currentUser.username}</span></div>
+    <div class="si"><span>Metode</span><span>${tx.metode}</span></div>
+    <hr class="sdv">${rows}<hr class="sdv">
+    <div class="si"><span>Subtotal</span><span>${fmt(tx.sub)}</span></div>
+    <hr class="sdv">
+    <div class="stot"><span>TOTAL</span><span>${fmt(tx.tot)}</span></div>
+    <div class="si"><span>Bayar</span><span>${fmt(tx.bayar)}</span></div>
+    <div class="stot"><span>Kembali</span><span>${fmt(tx.kem)}</span></div>
+    <hr class="sdv"><div class="sf">${cfg.ft}</div>
+    <div class="mbtns">
+      <button class="bp" onclick="doPrintBrowser()">🖨 Print 58mm</button>
+      <button class="bp2" onclick="doPrintBluetooth(lastTxData)">📡 Print Bluetooth</button>
+      <button class="bc" onclick="tutupStruk()">Transaksi Baru</button>
+    </div>
+  </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  window.lastTxData = tx;
+}
+
+function doPrintBrowser() {
+  const c = document.getElementById('struk-content').innerHTML;
+  const w = window.open('', '_blank', 'width=320,height=600');
+  w.document.write(`<!DOCTYPE html><html><head><title>Struk</title>
+  <style>
+  @page{size:58mm auto;margin:0}
+  body{font-family:'Courier New',monospace;font-size:10px;width:58mm;padding:2mm;margin:0;color:#000}
+  .mbtns{display:none}
+  .si{display:flex;justify-content:space-between;margin:1.5px 0}
+  .stot{display:flex;justify-content:space-between;font-weight:bold;font-size:11px;margin:2px 0}
+  .sh{text-align:center;margin-bottom:6px}
+  .sn{font-size:12px;font-weight:bold}
+  .ss{font-size:9px;color:#333}
+  .sdv{border:none;border-top:1px dashed #000;margin:5px 0}
+  .sf{text-align:center;margin-top:6px;font-size:9px}
+  </style></head><body>${c}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 350);
+}
+
+function tutupStruk() { document.getElementById('mo')?.remove(); clearCart(); }
+
+// ── ESC/POS via Web Bluetooth (untuk TM58M & printer thermal BT lain) ──
+async function pairBluetoothPrinter() {
+  const statusEl = document.getElementById('bt-status');
+  if (!navigator.bluetooth) { statusEl.textContent = '❌ Browser ini tidak mendukung Web Bluetooth (pakai Chrome Android/Desktop)'; return; }
+  try {
+    statusEl.textContent = 'Mencari printer...';
+    btDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+    });
+    const server = await btDevice.gatt.connect();
+    const services = await server.getPrimaryServices();
+    for (const svc of services) {
+      const chars = await svc.getCharacteristics();
+      const writable = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+      if (writable) { btCharacteristic = writable; break; }
+    }
+    if (!btCharacteristic) throw new Error('Tidak menemukan characteristic yang bisa ditulis');
+    statusEl.textContent = '✅ Terpasang: ' + (btDevice.name || 'Printer');
+    toast('Printer Bluetooth terpasang!', 'ok');
+  } catch (e) {
+    statusEl.textContent = '❌ Gagal: ' + e.message;
+  }
+}
+
+function escposText(str) {
+  return new TextEncoder().encode(str);
+}
+
+async function doPrintBluetooth(tx) {
+  if (!tx) return;
+  if (!btCharacteristic) { toast('Pasangkan printer Bluetooth dulu di menu Pengaturan', 'err'); return; }
+  try {
+    const ESC = 0x1B, GS = 0x1D;
+    const cmds = [];
+    const push = (...bytes) => cmds.push(...bytes);
+    const pushText = (s) => cmds.push(...escposText(s));
+
+    push(ESC, 0x40); // init
+    push(ESC, 0x61, 0x01); // center align
+    pushText(cfg.nm + '\n');
+    push(ESC, 0x61, 0x01);
+    pushText(cfg.al + '\n' + cfg.tp + '\n');
+    pushText('--------------------------------\n');
+    push(ESC, 0x61, 0x00); // left align
+    pushText(`No: ${tx.noStruk}\n`);
+    pushText(`${new Date().toLocaleString('id-ID')}\n`);
+    pushText('--------------------------------\n');
+    tx.cart.forEach(c => {
+      pushText(`${c.nama}\n`);
+      const left = `${c.qty} x ${fmt(c.harga_jual)}`;
+      const right = fmt(c.harga_jual * c.qty);
+      pushText(left.padEnd(32 - right.length, ' ') + right + '\n');
+    });
+    pushText('--------------------------------\n');
+    pushText(`Subtotal`.padEnd(20) + fmt(tx.sub).padStart(12) + '\n');
+    push(ESC, 0x45, 0x01); // bold on
+    pushText(`TOTAL`.padEnd(20) + fmt(tx.tot).padStart(12) + '\n');
+    push(ESC, 0x45, 0x00); // bold off
+    pushText(`Bayar`.padEnd(20) + fmt(tx.bayar).padStart(12) + '\n');
+    pushText(`Kembali`.padEnd(20) + fmt(tx.kem).padStart(12) + '\n');
+    pushText('--------------------------------\n');
+    push(ESC, 0x61, 0x01);
+    pushText(cfg.ft + '\n\n\n');
+    push(GS, 0x56, 0x42, 0x00); // cut paper
+
+    const data = new Uint8Array(cmds);
+    // Kirim per-chunk (banyak printer BLE punya limit ~180-512 byte per write)
+    const CHUNK = 180;
+    for (let i = 0; i < data.length; i += CHUNK) {
+      const chunk = data.slice(i, i + CHUNK);
+      if (btCharacteristic.properties.writeWithoutResponse) await btCharacteristic.writeValueWithoutResponse(chunk);
+      else await btCharacteristic.writeValue(chunk);
+      await new Promise(r => setTimeout(r, 40));
+    }
+    toast('Berhasil kirim ke printer!', 'ok');
+  } catch (e) {
+    toast('Gagal cetak Bluetooth: ' + e.message, 'err');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BARCODE SCANNER (kamera)
+// ═══════════════════════════════════════════════════════════════
+let scanTargetInput = null;
+
+function openScanner(targetInputId) {
+  scanTargetInput = targetInputId || null;
+  document.getElementById('scan-overlay').style.display = 'flex';
+  html5QrCode = new Html5Qrcode('scan-reader');
+  html5QrCode.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 240, height: 140 } },
+    (decodedText) => onBarcodeDetected(decodedText),
+    () => {}
+  ).catch(e => { toast('Tidak bisa akses kamera: ' + e, 'err'); closeScanner(); });
+}
+
+function closeScanner() {
+  document.getElementById('scan-overlay').style.display = 'none';
+  if (html5QrCode) { html5QrCode.stop().then(()=>html5QrCode.clear()).catch(()=>{}); html5QrCode = null; }
+}
+
+function onBarcodeDetected(code) {
+  closeScanner();
+  if (scanTargetInput) {
+    document.getElementById(scanTargetInput).value = code;
+    toast('Barcode terdeteksi: ' + code, 'ok');
+    return;
+  }
+  const p = prods.find(x => String(x.barcode) === String(code));
+  if (p) { addCart(p.id); toast(`${p.nama} ditambahkan ke keranjang`, 'ok'); }
+  else toast('Produk dengan barcode ' + code + ' tidak ditemukan', 'err');
+}
+
+// ── Scanner fisik (USB/Bluetooth keyboard-wedge) ──
+// Scanner fisik mengetik karakter sangat cepat lalu Enter. Kita tangkap global.
+let physicalBuf = '', physicalTimer = null;
+document.addEventListener('keydown', (e) => {
+  const activeTag = document.activeElement.tagName;
+  if (activeTag === 'INPUT' || activeTag === 'SELECT' || activeTag === 'TEXTAREA') return;
+  if (document.getElementById('page-kasir') && !document.getElementById('page-kasir').classList.contains('active')) return;
+  if (document.getElementById('login-screen').style.display !== 'none') return;
+
+  clearTimeout(physicalTimer);
+  if (e.key === 'Enter') {
+    if (physicalBuf.length >= 4) {
+      const p = prods.find(x => String(x.barcode) === physicalBuf);
+      if (p) { addCart(p.id); toast(`${p.nama} ditambahkan (scanner fisik)`, 'ok'); }
+      else toast('Barcode ' + physicalBuf + ' tidak ditemukan', 'err');
+    }
+    physicalBuf = '';
+    return;
+  }
+  if (e.key.length === 1) physicalBuf += e.key;
+  physicalTimer = setTimeout(() => physicalBuf = '', 300); // reset jika terlalu lambat (bukan scanner)
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUK — CRUD (admin)
+// ═══════════════════════════════════════════════════════════════
+function setPT(t) {
+  document.getElementById('pt-list').style.display = t === 'list' ? '' : 'none';
+  document.getElementById('pt-add').style.display = t === 'add' ? '' : 'none';
+  document.querySelectorAll('#page-produk .tab').forEach((b,i)=>b.classList.toggle('active',(i===0&&t==='list')||(i===1&&t==='add')));
+  if (t === 'list') renderPT();
+  if (t === 'add' && !editingProdId) clearProdForm();
+}
+
+function clearProdForm() {
+  ['npn','npbc','npk','npst','nph','nphb'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nps').value = 'pcs';
+  document.getElementById('npid').value = '';
+  editingProdId = null;
+  document.getElementById('btn-simpan-produk').textContent = 'Simpan Produk';
+}
+
+function renderPT() {
+  const q = (document.getElementById('psrc')?.value||'').toLowerCase();
+  const tb = document.getElementById('ptbody');
+  const f = prods.filter(p => !q || p.nama.toLowerCase().includes(q) || String(p.barcode).includes(q));
+  if (!f.length) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:18px;color:var(--text3)">Tidak ada produk</td></tr>'; return; }
+  tb.innerHTML = f.map(p => {
+    const sb = p.stok<=0?'br':p.stok<=5?'by':'bg';
+    return `<tr>
+      <td style="color:var(--text3)">${p.id}</td>
+      <td style="font-size:11px">${p.barcode||'—'}</td>
+      <td><strong style="font-weight:500">${p.nama}</strong></td>
+      <td><span class="badge bb">${p.tipe||'Umum'}</span></td>
+      <td>${fmt(p.harga_jual)}</td><td style="color:var(--text2)">${fmt(p.harga_beli)}</td>
+      <td><span class="badge ${sb}">${p.stok} ${p.satuan||''}</span></td>
+      <td style="color:var(--text2)">${p.satuan||''}</td>
+      <td><div class="ab"><button class="abtn" onclick="editProduk(${p.id})">✏</button><button class="abtn r" onclick="hapusProduk(${p.id})">🗑</button></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function editProduk(id) {
+  const p = prods.find(x => x.id === id);
+  if (!p) return;
+  editingProdId = id;
+  document.getElementById('npid').value = id;
+  document.getElementById('npn').value = p.nama;
+  document.getElementById('npbc').value = p.barcode||'';
+  document.getElementById('npk').value = p.tipe||'';
+  document.getElementById('nps').value = p.satuan||'pcs';
+  document.getElementById('npst').value = p.stok;
+  document.getElementById('nph').value = p.harga_jual;
+  document.getElementById('nphb').value = p.harga_beli;
+  document.getElementById('btn-simpan-produk').textContent = 'Update Produk';
+  setPT('add');
+}
+
+function batalEditProduk() { clearProdForm(); setPT('list'); }
+
+async function simpanProduk() {
+  const d = {
+    nama: document.getElementById('npn').value.trim(),
+    barcode: document.getElementById('npbc').value.trim(),
+    tipe: document.getElementById('npk').value.trim() || 'Umum',
+    satuan: document.getElementById('nps').value.trim() || 'pcs',
+    stok: parseInt(document.getElementById('npst').value) || 0,
+    harga_jual: parseFloat(document.getElementById('nph').value),
+    harga_beli: parseFloat(document.getElementById('nphb').value) || 0,
+  };
+  if (!d.nama || isNaN(d.harga_jual)) { toast('Isi nama dan harga jual', 'err'); return; }
+  try {
+    if (editingProdId) { d.id = editingProdId; await api('updateProduk', { produk: d }); toast('Produk diupdate!', 'ok'); }
+    else { await api('addProduk', { produk: d }); toast('Produk ditambahkan!', 'ok'); }
+    await loadProduk();
+    clearProdForm(); setPT('list');
+  } catch (e) { toast('Gagal simpan: ' + e.message, 'err'); }
+}
+
+async function hapusProduk(id) {
+  if (!confirm('Hapus produk ini?')) return;
+  try { await api('deleteProduk', { id }); await loadProduk(); renderPT(); toast('Produk dihapus', 'ok'); }
+  catch (e) { toast('Gagal hapus: ' + e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RIWAYAT TRANSAKSI
+// ═══════════════════════════════════════════════════════════════
+async function renderBuku() {
+  const dari = document.getElementById('b-dari').value;
+  const sampai = document.getElementById('b-sampai').value;
+  try {
+    const res = await api('getTransaksi', { dari, sampai });
+    const tb = document.getElementById('btbody');
+    const data = res.data || [];
+    tb.innerHTML = data.length ? data.map(t => `<tr>
+      <td style="font-weight:500">${t.no_struk}</td>
+      <td style="font-size:11px">${t.tanggal}</td>
+      <td>${t.kasir}</td>
+      <td>${fmt(t.subtotal)}</td>
+      <td style="font-weight:600">${fmt(t.total)}</td>
+      <td><span class="badge bb">${t.metode}</span></td>
+      <td><button class="abtn" onclick="lihatDetail(${t.id})">Detail</button></td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--text3)">Belum ada transaksi</td></tr>';
+  } catch (e) { toast('Gagal memuat riwayat: ' + e.message, 'err'); }
+}
+
+async function lihatDetail(id) {
+  try {
+    const res = await api('getDetailTransaksi', { transaksi_id: id });
+    const items = res.data || [];
+    alert('Detail Transaksi:\n\n' + items.map(i => `${i.nama}  x${i.qty}  =  ${fmt(i.subtotal)}`).join('\n'));
+  } catch (e) { toast('Gagal memuat detail: ' + e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LAPORAN
+// ═══════════════════════════════════════════════════════════════
+let chartInstance = null;
+async function renderLaporan() {
+  try {
+    const r = await api('getLaporan', {});
+    document.getElementById('mgrid').innerHTML = `
+      <div class="mc"><div class="ml">Penjualan Hari Ini</div><div class="mv" style="color:var(--green)">${fmt(r.harian.total)}</div><div class="ms">${r.harian.count} transaksi</div></div>
+      <div class="mc"><div class="ml">Penjualan Minggu Ini</div><div class="mv" style="color:var(--green)">${fmt(r.mingguan.total)}</div><div class="ms">${r.mingguan.count} transaksi</div></div>
+      <div class="mc"><div class="ml">Penjualan Bulan Ini</div><div class="mv" style="color:var(--green)">${fmt(r.bulanan.total)}</div><div class="ms">${r.bulanan.count} transaksi</div></div>`;
+
+    const ctx = document.getElementById('chart7').getContext('2d');
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: r.grafik7hari.map(g => g.tanggal.slice(5)),
+        datasets: [{ label: 'Penjualan', data: r.grafik7hari.map(g => g.total), backgroundColor: '#18181b', borderRadius: 4 }]
+      },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:v=>fmt(v)}}} }
+    });
+
+    document.getElementById('terlaris').innerHTML = r.terlaris.length ? r.terlaris.map((t,i) => `<tr><td>${i+1}. ${t.nama}</td><td>${t.qty}</td><td>${fmt(t.nominal)}</td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:14px;color:var(--text3)">Belum ada data</td></tr>';
+    document.getElementById('stipis').innerHTML = r.stokTipis.length ? r.stokTipis.map(p => `<tr><td>${p.nama}</td><td><span class="badge ${p.stok<=0?'br':'by'}">${p.stok}</span></td><td>${p.satuan||''}</td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:14px;color:var(--text3)">Semua stok aman ✓</td></tr>';
+  } catch (e) { toast('Gagal memuat laporan: ' + e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PENGGUNA (admin)
+// ═══════════════════════════════════════════════════════════════
+async function renderUsers() {
+  try {
+    const res = await api('getUsers', {});
+    const tb = document.getElementById('utbody');
+    tb.innerHTML = res.data.map(u => `<tr>
+      <td>${u.id}</td><td>${u.username}</td><td>${u.nama}</td>
+      <td><span class="badge ${u.role==='admin'?'bb':'bg'}">${u.role}</span></td>
+      <td><span class="badge ${u.aktif!==false?'bg':'br'}">${u.aktif!==false?'Aktif':'Nonaktif'}</span></td>
+      <td><div class="ab"><button class="abtn" onclick='editUser(${JSON.stringify(u)})'>✏</button><button class="abtn r" onclick="hapusUser(${u.id})">🗑</button></div></td>
+    </tr>`).join('');
+  } catch (e) { toast('Gagal memuat pengguna: ' + e.message, 'err'); }
+}
+
+function showAddUser() {
+  document.getElementById('userform').style.display = '';
+  document.getElementById('uf-title').textContent = 'Tambah Pengguna';
+  document.getElementById('u-id').value = '';
+  document.getElementById('u-username').value = '';
+  document.getElementById('u-nama').value = '';
+  document.getElementById('u-password').value = '';
+  document.getElementById('u-role').value = 'kasir';
+  document.getElementById('u-pass-note').textContent = '*';
+}
+
+function editUser(u) {
+  document.getElementById('userform').style.display = '';
+  document.getElementById('uf-title').textContent = 'Edit Pengguna';
+  document.getElementById('u-id').value = u.id;
+  document.getElementById('u-username').value = u.username;
+  document.getElementById('u-nama').value = u.nama;
+  document.getElementById('u-password').value = '';
+  document.getElementById('u-role').value = u.role;
+  document.getElementById('u-pass-note').textContent = '(kosongkan jika tidak diubah)';
+}
+
+async function simpanUser() {
+  const id = document.getElementById('u-id').value;
+  const d = {
+    username: document.getElementById('u-username').value.trim(),
+    nama: document.getElementById('u-nama').value.trim(),
+    password: document.getElementById('u-password').value,
+    role: document.getElementById('u-role').value,
+  };
+  if (!d.username) { toast('Isi username', 'err'); return; }
+  if (!id && (!d.password || d.password.length < 6)) { toast('Password minimal 6 karakter', 'err'); return; }
+  try {
+    if (id) { d.id = id; await api('updateUser', { userData: d }); }
+    else { await api('addUser', { userData: d }); }
+    toast('Pengguna disimpan', 'ok');
+    document.getElementById('userform').style.display = 'none';
+    renderUsers();
+  } catch (e) { toast('Gagal: ' + e.message, 'err'); }
+}
+
+async function hapusUser(id) {
+  if (id == currentUser.id) { toast('Tidak bisa menghapus akun sendiri', 'err'); return; }
+  if (!confirm('Hapus pengguna ini?')) return;
+  try { await api('deleteUser', { id }); renderUsers(); toast('Pengguna dihapus', 'ok'); }
+  catch (e) { toast('Gagal hapus: ' + e.message, 'err'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PENGATURAN
+// ═══════════════════════════════════════════════════════════════
+function loadCfgToForm() {
+  document.getElementById('snm').value = cfg.nm;
+  document.getElementById('sal').value = cfg.al;
+  document.getElementById('stp').value = cfg.tp;
+  document.getElementById('sft').value = cfg.ft;
+  document.getElementById('set-apiurl').value = API_URL;
+  document.getElementById('set-printmode').value = cfg.printMode || 'browser';
+}
+
+function saveSetting() {
+  cfg.nm = document.getElementById('snm').value;
+  cfg.al = document.getElementById('sal').value;
+  cfg.tp = document.getElementById('stp').value;
+  cfg.ppn = 0;
+  cfg.ft = document.getElementById('sft').value;
+  localStorage.setItem('kasir_cfg', JSON.stringify(cfg));
+  toast('Pengaturan disimpan', 'ok');
+  renderCart();
+}
+
+function saveApiUrl() {
+  API_URL = document.getElementById('set-apiurl').value.trim();
+  localStorage.setItem('kasir_api_url', API_URL);
+  toast('URL API disimpan', 'ok');
+}
+
+async function testApiConn() {
+  const el = document.getElementById('conn-status');
+  el.textContent = 'Menghubungi...';
+  try { await api('ping', {}); el.textContent = '✅ Koneksi berhasil!'; }
+  catch (e) { el.textContent = '❌ ' + e.message; }
+}
+
+function savePrintMode() {
+  cfg.printMode = document.getElementById('set-printmode').value;
+  localStorage.setItem('kasir_cfg', JSON.stringify(cfg));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+initLoginScreen();
+</script>
+</body>
+</html>
