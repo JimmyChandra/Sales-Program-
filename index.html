@@ -300,9 +300,9 @@ tr:hover td{background:#fafafa}
       <div class="ip">
         <div class="ph2"><h2>Riwayat Transaksi</h2></div>
         <div class="fr">
-          <input type="date" id="b-dari"/>
+          <input type="date" id="b-dari" aria-label="Tanggal awal"/>
           <span style="font-size:12px;color:var(--text2)">s/d</span>
-          <input type="date" id="b-sampai"/>
+          <input type="date" id="b-sampai" aria-label="Tanggal akhir"/>
           <button class="btn-p" onclick="renderBuku()">Filter</button>
         </div>
         <div class="tw">
@@ -427,6 +427,22 @@ let btDevice = null, btCharacteristic = null;
 let html5QrCode = null;
 
 const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+function formatWaktuStruk(value) {
+  if (!value) return '';
+  const s = String(value).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6] || '00'}`;
+  m = s.match(/^(\d{2})[/-](\d{2})[/-](\d{4})(?:[ ,]+(\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?)?/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]} ${String(m[4] || '00').padStart(2,'0')}:${m[5] || '00'}:${m[6] || '00'}`;
+  const date = new Date(s);
+  if (Number.isNaN(date.getTime())) return s;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone:'Asia/Jakarta', year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23'
+  }).formatToParts(date);
+  const p = Object.fromEntries(parts.map(x => [x.type,x.value]));
+  return `${p.day}-${p.month}-${p.year} ${p.hour}:${p.minute}:${p.second}`;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // API CALL (ke Google Apps Script)
@@ -638,8 +654,8 @@ async function prosesBayar() {
   const btn = document.getElementById('btnbayar');
   btn.disabled = true; btn.textContent = 'Memproses...';
   try {
-    await api('createTransaksi', { header, items });
-    tampilStruk({ cart: cart.map(c => ({ ...c })), sub, ppn, tot, bayar, kem: Math.max(0, bayar - tot), noStruk, metode });
+    const saved = await api('createTransaksi', { header, items });
+    tampilStruk({ cart: cart.map(c => ({ ...c })), sub, ppn, tot, bayar, kem: Math.max(0, bayar - tot), noStruk, metode, tanggal: saved.tanggal || new Date().toLocaleString('id-ID'), kasir: currentUser.nama||currentUser.username });
     cart = []; document.getElementById('ubayar').value = ''; renderCart();
     await loadProduk();
   } catch (e) {
@@ -655,11 +671,11 @@ async function prosesBayar() {
 function tampilStruk(tx) {
   const rows = tx.cart.map(c => `<div class="si"><span>${c.nama}</span></div><div class="si"><span style="color:#666">${c.qty} x ${fmt(c.harga_jual)}</span><span>${fmt(c.harga_jual*c.qty)}</span></div>`).join('');
   const html = `<div class="mo" id="mo"><div class="sb2" id="struk-content">
+    ${tx.isCopy ? '<div style="text-align:center;font-size:16px;font-weight:bold;letter-spacing:2px;margin-bottom:6px">*** COPY ***</div><hr class="sdv">' : ''}
     <div class="sh"><div class="sn">${cfg.nm}</div><div class="ss">${cfg.al}</div><div class="ss">Telp: ${cfg.tp}</div></div>
     <hr class="sdv">
     <div class="si"><span>No Struk</span><span>${tx.noStruk}</span></div>
-    <div class="si"><span>Tanggal</span><span>${new Date().toLocaleString('id-ID')}</span></div>
-    <div class="si"><span>Kasir</span><span>${currentUser.nama||currentUser.username}</span></div>
+    <div class="si"><span>Tanggal</span><span>${formatWaktuStruk(tx.tanggal || new Date())}</span></div>
     <div class="si"><span>Metode</span><span>${tx.metode}</span></div>
     <hr class="sdv">${rows}<hr class="sdv">
     <div class="si"><span>Subtotal</span><span>${fmt(tx.sub)}</span></div>
@@ -739,13 +755,14 @@ async function doPrintBluetooth(tx) {
 
     push(ESC, 0x40); // init
     push(ESC, 0x61, 0x01); // center align
+    if (tx.isCopy) { push(ESC, 0x45, 0x01); pushText('*** COPY ***\n'); push(ESC, 0x45, 0x00); pushText('--------------------------------\n'); }
     pushText(cfg.nm + '\n');
     push(ESC, 0x61, 0x01);
     pushText(cfg.al + '\n' + cfg.tp + '\n');
     pushText('--------------------------------\n');
     push(ESC, 0x61, 0x00); // left align
     pushText(`No: ${tx.noStruk}\n`);
-    pushText(`${new Date().toLocaleString('id-ID')}\n`);
+    pushText(`${formatWaktuStruk(tx.tanggal || new Date())}\n`);
     pushText('--------------------------------\n');
     tx.cart.forEach(c => {
       pushText(`${c.nama}\n`);
@@ -926,18 +943,45 @@ async function hapusProduk(id) {
 async function renderBuku() {
   const dari = document.getElementById('b-dari').value;
   const sampai = document.getElementById('b-sampai').value;
+  if (dari && sampai && dari > sampai) { toast('Tanggal awal tidak boleh melewati tanggal akhir', 'err'); return; }
   try {
-    const res = await api('getTransaksi', { dari, sampai });
+    // Ambil daftar penuh, lalu filter lokal agar tetap berfungsi pada versi API lama.
+    const res = await api('getTransaksi', {});
     const tb = document.getElementById('btbody');
-    const data = res.data || [];
+    const dateKey = value => {
+      const s = String(value == null ? '' : value).trim();
+      let m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (m && !(s.charAt(10) === 'T' && /Z$/.test(s))) return m[1];
+      m = s.match(/^(\d{2})-(\d{2})-(\d{4})/);
+      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return '';
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Jakarta', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(d);
+      const part = Object.fromEntries(parts.map(p => [p.type,p.value]));
+      return `${part.year}-${part.month}-${part.day}`;
+    };
+    const formatHistoryDate = value => {
+      const s = String(value == null ? '' : value).trim();
+      let m = s.match(/^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]} ${m[4] || '00:00:00'}`;
+      m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)(?!Z)/);
+      if (m) return `${m[3]}-${m[2]}-${m[1]} ${m[4].length === 5 ? m[4]+':00' : m[4]}`;
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return s;
+      return new Intl.DateTimeFormat('id-ID', { timeZone:'Asia/Jakarta', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).format(d).replaceAll('/', '-');
+    };
+    const data = (res.data || []).filter(t => {
+      const key = dateKey(t.tanggal_iso || t.tanggal);
+      return key && (!dari || key >= dari) && (!sampai || key <= sampai);
+    });
     tb.innerHTML = data.length ? data.map(t => `<tr>
       <td style="font-weight:500">${t.no_struk}</td>
-      <td style="font-size:11px">${t.tanggal}</td>
+      <td style="font-size:11px">${formatHistoryDate(t.tanggal_iso || t.tanggal)}</td>
       <td>${t.kasir}</td>
       <td>${fmt(t.subtotal)}</td>
       <td style="font-weight:600">${fmt(t.total)}</td>
       <td><span class="badge bb">${t.metode}</span></td>
-      <td><button class="abtn" onclick="lihatDetail(${t.id})">Detail</button></td>
+      <td><button class="abtn" onclick="lihatDetail(${t.id})">Detail</button>${currentUser.role==='admin'?` <button class="abtn" onclick="cetakUlang(${t.id})">Cetak Ulang</button>`:''}</td>
     </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:18px;color:var(--text3)">Belum ada transaksi</td></tr>';
   } catch (e) { toast('Gagal memuat riwayat: ' + e.message, 'err'); }
 }
@@ -948,6 +992,30 @@ async function lihatDetail(id) {
     const items = res.data || [];
     alert('Detail Transaksi:\n\n' + items.map(i => `${i.nama}  x${i.qty}  =  ${fmt(i.subtotal)}`).join('\n'));
   } catch (e) { toast('Gagal memuat detail: ' + e.message, 'err'); }
+}
+
+async function cetakUlang(id) {
+  if (currentUser?.role !== 'admin') { toast('Cetak ulang hanya untuk admin', 'err'); return; }
+  try {
+    const [trxRes, detailRes] = await Promise.all([
+      api('getTransaksi', {}),
+      api('getDetailTransaksi', { transaksi_id: id }),
+    ]);
+    const trx = (trxRes.data || []).find(t => Number(t.id) === Number(id));
+    if (!trx) throw new Error('Transaksi tidak ditemukan');
+    const cart = (detailRes.data || []).map(i => ({
+      id: i.produk_id, barcode: i.barcode, nama: i.nama,
+      harga_jual: Number(i.harga), qty: Number(i.qty), stok: 0,
+    }));
+    if (!cart.length) throw new Error('Detail transaksi tidak ditemukan');
+    const total = Number(trx.total) || 0;
+    tampilStruk({
+      cart, sub: Number(trx.subtotal) || 0, ppn: 0, tot: total,
+      bayar: Number(trx.bayar) || total, kem: Number(trx.kembalian) || 0,
+      noStruk: trx.no_struk, metode: trx.metode, tanggal: trx.tanggal,
+      kasir: trx.kasir, isCopy: true,
+    });
+  } catch (e) { toast('Gagal menyiapkan struk ulang: ' + e.message, 'err'); }
 }
 
 // ═══════════════════════════════════════════════════════════════

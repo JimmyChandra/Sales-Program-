@@ -58,6 +58,8 @@ Login menghasilkan sesi sementara di server (berlaku hingga 6 jam). Hak admin/ka
 - Setelah di-hosting (Langkah 4), buka link yang sama di browser HP (Chrome/Safari)
 - Bisa juga "Add to Home Screen" di HP supaya terlihat seperti aplikasi asli
 
+Di menu Riwayat, pilih tanggal awal dan akhir melalui pemilih tanggal pada browser. Kolom tanggal transaksi menampilkan tanggal **DD-MM-YYYY** dan waktu.
+
 ---
 
 ## 📷 Cara Pakai Scan Barcode

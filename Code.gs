@@ -84,7 +84,20 @@ function setupSheets() {
 // ─────────────────────────────────────────────────────────────────
 function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
 function sh_(name) { return ss_().getSheetByName(name); }
-function nowStr_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss'); }
+function nowStr_() { return Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss'); }
+function dateText_(value) {
+  if (value instanceof Date) return Utilities.formatDate(value, 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+  const raw = String(value == null ? '' : value).trim();
+  let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return `${m[1]}-${('0'+m[2]).slice(-2)}-${('0'+m[3]).slice(-2)} ${('0'+(m[4]||'00')).slice(-2)}:${m[5]||'00'}:${m[6]||'00'}`;
+  m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return `${m[3]}-${('0'+m[2]).slice(-2)}-${('0'+m[1]).slice(-2)} ${('0'+(m[4]||'00')).slice(-2)}:${m[5]||'00'}:${m[6]||'00'}`;
+  return raw;
+}
+function dateDisplay_(iso) {
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}:\d{2}:\d{2}))?/);
+  return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4] || '00:00:00'}` : String(iso);
+}
 
 function hashPw_(pw) {
   const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, pw, Utilities.Charset.UTF_8);
@@ -120,8 +133,8 @@ function findRowById_(sheet, id) {
   return -1;
 }
 
-function logAktivitas_(user, aksi, ket) {
-  try { sh_(SHEET_LOG).appendRow([nowStr_(), user || '-', aksi, ket]); } catch(e) {}
+function logAktivitas_(user, aksi, ket, waktu) {
+  try { sh_(SHEET_LOG).appendRow([waktu || nowStr_(), user || '-', aksi, ket]); } catch(e) {}
 }
 
 function json_(obj) {
@@ -270,7 +283,8 @@ function apiCreateTransaksi_(body) {
 
   const id = nextId_(shTrx);
   const noStruk = header.no_struk || ('TRX' + new Date().getTime());
-  shTrx.appendRow([id, noStruk, nowStr_(), body.user||'-', subtotal, 0, total, bayar, Math.max(0,bayar-total), header.metode||'Tunai', nowStr_()]);
+  const transactionTime = nowStr_();
+  shTrx.appendRow([id, noStruk, transactionTime, body.user||'-', subtotal, 0, total, bayar, Math.max(0,bayar-total), header.metode||'Tunai', transactionTime]);
 
   normalized.forEach(it => {
     const itemId = nextId_(shItem);
@@ -279,18 +293,24 @@ function apiCreateTransaksi_(body) {
     shProd.getRange(it.row,10).setValue(nowStr_());
   });
 
-  logAktivitas_(body.user, 'penjualan', `Struk ${noStruk} total ${total}`);
-  return { ok:true, id, no_struk: noStruk };
+  logAktivitas_(body.user, 'penjualan', `Struk ${noStruk} total ${total}`, transactionTime);
+  return { ok:true, id, no_struk: noStruk, tanggal:dateDisplay_(transactionTime) };
   } finally {
     lock.releaseLock();
   }
 }
 
 function apiGetTransaksi_(body) {
-  let data = sheetToObjects_(sh_(SHEET_TRX));
-  if (body.dari) data = data.filter(t => String(t.tanggal) >= body.dari);
-  if (body.sampai) data = data.filter(t => String(t.tanggal) <= body.sampai + ' 23:59:59');
-  return data.sort((a,b) => String(b.created_at).localeCompare(String(a.created_at)));
+  let data = sheetToObjects_(sh_(SHEET_TRX)).map(t => {
+    // Gunakan waktu transaksi yang sama dengan yang dikirim kembali untuk struk.
+    // LogAktivitas bukan sumber waktu transaksi dan bisa terbaca sebagai Date
+    // dengan zona waktu spreadsheet yang berbeda.
+    const tanggalIso = dateText_(t.tanggal);
+    return { ...t, tanggal_iso:tanggalIso, tanggal:dateDisplay_(tanggalIso), created_at:dateText_(t.created_at) };
+  });
+  if (body.dari) data = data.filter(t => t.tanggal_iso.slice(0,10) >= body.dari);
+  if (body.sampai) data = data.filter(t => t.tanggal_iso.slice(0,10) <= body.sampai);
+  return data.sort((a,b) => b.created_at.localeCompare(a.created_at));
 }
 
 function apiGetDetail_(body) {
