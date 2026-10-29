@@ -384,6 +384,14 @@ tr:hover td{background:#fafafa}
               <option value="bluetooth">Bluetooth langsung (ESC/POS, khusus Chrome Android/Desktop)</option>
             </select>
           </div>
+          <div class="fg2" style="margin:10px 0">
+            <label style="display:flex;align-items:center;gap:8px"><input id="set-drawer-kick" type="checkbox" onchange="saveDrawerConfig()" style="width:auto"/> Buka cash drawer otomatis setelah cetak Bluetooth</label>
+          </div>
+          <div class="fg2" style="margin-bottom:9px">
+            <label>Pin cash drawer</label>
+            <select id="set-drawer-pin" onchange="saveDrawerConfig()"><option value="0">Pin 2 (umum)</option><option value="1">Pin 5</option></select>
+          </div>
+          <p style="font-size:11px;color:var(--text2);margin-bottom:9px">Cash drawer harus tersambung ke port DK/kick drawer pada printer. Pengaturan ini hanya berlaku untuk cetak Bluetooth.</p>
           <button class="btn-sec" style="width:auto;padding:7px 14px" onclick="pairBluetoothPrinter()">🔗 Pasangkan Printer Bluetooth</button>
           <div id="bt-status" style="margin-top:8px;font-size:12px;color:var(--text2)"></div>
           <div style="margin-top:12px;padding:10px;background:var(--blue-bg);border-radius:var(--r);font-size:12px;color:var(--blue)">
@@ -413,6 +421,8 @@ let authToken = sessionStorage.getItem('kasir_token') || '';
 let prods = [], cart = [], editingProdId = null, curBT = null;
 let cfg = JSON.parse(localStorage.getItem('kasir_cfg') || '{"nm":"Toko Sejahtera","al":"Jl. Raya Utama No. 1","tp":"(061) 123-4567","ppn":0,"ft":"Terima kasih atas kunjungan Anda!","printMode":"browser"}');
 cfg.ppn = 0;
+if (cfg.drawerKick === undefined) cfg.drawerKick = true;
+if (cfg.drawerPin === undefined) cfg.drawerPin = 0;
 let btDevice = null, btCharacteristic = null;
 let html5QrCode = null;
 
@@ -753,6 +763,7 @@ async function doPrintBluetooth(tx) {
     pushText('--------------------------------\n');
     push(ESC, 0x61, 0x01);
     pushText(cfg.ft + '\n\n\n');
+    if (cfg.drawerKick) push(ESC, 0x70, Number(cfg.drawerPin) === 1 ? 0x01 : 0x00, 0x19, 0xFA); // buka laci: pulsa ESC/POS, 50ms / 500ms
     push(GS, 0x56, 0x42, 0x00); // cut paper
 
     const data = new Uint8Array(cmds);
@@ -1041,6 +1052,8 @@ function loadCfgToForm() {
   document.getElementById('sft').value = cfg.ft;
   document.getElementById('set-apiurl').value = API_URL;
   document.getElementById('set-printmode').value = cfg.printMode || 'browser';
+  document.getElementById('set-drawer-kick').checked = cfg.drawerKick !== false;
+  document.getElementById('set-drawer-pin').value = String(cfg.drawerPin || 0);
 }
 
 function saveSetting() {
@@ -1069,6 +1082,12 @@ async function testApiConn() {
 
 function savePrintMode() {
   cfg.printMode = document.getElementById('set-printmode').value;
+  localStorage.setItem('kasir_cfg', JSON.stringify(cfg));
+}
+
+function saveDrawerConfig() {
+  cfg.drawerKick = document.getElementById('set-drawer-kick').checked;
+  cfg.drawerPin = Number(document.getElementById('set-drawer-pin').value) === 1 ? 1 : 0;
   localStorage.setItem('kasir_cfg', JSON.stringify(cfg));
 }
 

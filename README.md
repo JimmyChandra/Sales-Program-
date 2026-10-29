@@ -92,6 +92,7 @@ Ada 2 metode cetak, pilih sesuai kondisi:
 4. Ubah **Metode Cetak** ke "Bluetooth langsung"
 5. Setelah transaksi, klik **"📡 Print Bluetooth"** — struk langsung tercetak
    tanpa dialog print
+6. Jika cash drawer tersambung ke port DK printer, opsi **Buka cash drawer otomatis** mengirim pulsa pembuka setelah struk. Pilih Pin 2 (umum) atau Pin 5 sesuai spesifikasi laci/printer.
 
 ---
 
