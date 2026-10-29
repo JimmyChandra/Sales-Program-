@@ -251,6 +251,8 @@ tr:hover td{background:#fafafa}
             <div class="kb" id="kbox" style="display:none">
               <span class="kl2">Kembalian</span><span class="kv" id="kval">Rp 0</span>
             </div>
+            <button class="btn-sec" id="btn-connect-printer" onclick="pairBluetoothPrinter()" style="margin-bottom:8px">🔗 Hubungkan Printer TM58M</button>
+            <div id="cashier-printer-status" style="font-size:12px;color:var(--text2);margin:0 0 8px"></div>
             <button class="btn-bayar" id="btnbayar" onclick="prosesBayar()" disabled>Proses Pembayaran</button>
             <button class="btn-sec" onclick="clearCart()">Kosongkan</button>
           </div>
@@ -319,7 +321,7 @@ tr:hover td{background:#fafafa}
         <div class="mg" id="mgrid"></div>
         <div class="chart-wrap"><canvas id="chart7"></canvas></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <div class="tw"><div style="padding:11px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">🏆 Produk Terlaris (bulan ini)</div>
+          <div class="tw"><div style="padding:11px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">🏆 Produk Terlaris (hari ini)</div>
             <table><thead><tr><th>Produk</th><th>Terjual</th><th>Nominal</th></tr></thead><tbody id="terlaris"></tbody></table>
           </div>
           <div class="tw"><div style="padding:11px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">⚠️ Stok Menipis</div>
@@ -536,6 +538,8 @@ async function showApp() {
   document.querySelectorAll('[data-role="admin"]').forEach(el => el.style.display = currentUser.role === 'admin' ? '' : 'none');
   await loadProduk();
   loadCfgToForm();
+  updateCashierPrinterControls();
+  restoreBluetoothPrinter();
 }
 
 function toggleNav() { document.getElementById('nav-links').classList.toggle('open'); }
@@ -717,10 +721,11 @@ function tutupStruk() { document.getElementById('mo')?.remove(); clearCart(); }
 
 // ── ESC/POS via Web Bluetooth (untuk TM58M & printer thermal BT lain) ──
 async function pairBluetoothPrinter() {
-  const statusEl = document.getElementById('bt-status');
-  if (!navigator.bluetooth) { statusEl.textContent = '❌ Browser ini tidak mendukung Web Bluetooth (pakai Chrome Android/Desktop)'; return; }
+  const statusEls = [document.getElementById('bt-status'), document.getElementById('cashier-printer-status')].filter(Boolean);
+  const setStatus = message => statusEls.forEach(el => { el.textContent = message; });
+  if (!navigator.bluetooth) { setStatus('❌ Browser ini tidak mendukung Web Bluetooth (gunakan Chrome Android/Desktop)'); return; }
   try {
-    statusEl.textContent = 'Mencari printer...';
+    setStatus('Mencari printer... Pilih TM58M dari daftar perangkat.');
     btDevice = await navigator.bluetooth.requestDevice({
       acceptAllDevices: true,
       optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '0000ff00-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
@@ -733,10 +738,43 @@ async function pairBluetoothPrinter() {
       if (writable) { btCharacteristic = writable; break; }
     }
     if (!btCharacteristic) throw new Error('Tidak menemukan characteristic yang bisa ditulis');
-    statusEl.textContent = '✅ Terpasang: ' + (btDevice.name || 'Printer');
+    setStatus('✅ Terhubung: ' + (btDevice.name || 'Printer'));
     toast('Printer Bluetooth terpasang!', 'ok');
   } catch (e) {
-    statusEl.textContent = '❌ Gagal: ' + e.message;
+    setStatus('❌ Gagal: ' + e.message);
+  }
+}
+
+function updateCashierPrinterControls() {
+  const button = document.getElementById('btn-connect-printer');
+  const status = document.getElementById('cashier-printer-status');
+  if (!button || !status) return;
+  const bluetoothMode = cfg.printMode === 'bluetooth';
+  button.style.display = bluetoothMode ? '' : 'none';
+  status.style.display = bluetoothMode ? '' : 'none';
+  if (bluetoothMode && !status.textContent) status.textContent = 'Hubungkan printer di sini sebelum mencetak struk.';
+}
+
+async function restoreBluetoothPrinter() {
+  if (cfg.printMode !== 'bluetooth' || !navigator.bluetooth?.getDevices) return;
+  try {
+    const devices = await navigator.bluetooth.getDevices();
+    const device = devices.find(d => d.name && /TM58M/i.test(d.name));
+    if (!device) return;
+    btDevice = device;
+    if (!device.gatt.connected) await device.gatt.connect();
+    const services = await device.gatt.getPrimaryServices();
+    for (const svc of services) {
+      const chars = await svc.getCharacteristics();
+      const writable = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+      if (writable) { btCharacteristic = writable; break; }
+    }
+    if (btCharacteristic) {
+      const message = '✅ Terhubung: ' + (device.name || 'TM58M');
+      ['bt-status', 'cashier-printer-status'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = message; });
+    }
+  } catch (e) {
+    // User can reconnect explicitly from the cashier page if browser permission expired.
   }
 }
 
@@ -1038,7 +1076,11 @@ async function renderLaporan() {
         labels: r.grafik7hari.map(g => g.tanggal.slice(5)),
         datasets: [{ label: 'Penjualan', data: r.grafik7hari.map(g => g.total), backgroundColor: '#18181b', borderRadius: 4 }]
       },
-      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:v=>fmt(v)}}} }
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true, suggestedMax:Math.max(1000,...r.grafik7hari.map(g=>Number(g.total)||0)), ticks:{precision:0,callback:v=>fmt(v)}}}
+      }
     });
 
     document.getElementById('terlaris').innerHTML = r.terlaris.length ? r.terlaris.map((t,i) => `<tr><td>${i+1}. ${t.nama}</td><td>${t.qty}</td><td>${fmt(t.nominal)}</td></tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:14px;color:var(--text3)">Belum ada data</td></tr>';
@@ -1151,6 +1193,7 @@ async function testApiConn() {
 function savePrintMode() {
   cfg.printMode = document.getElementById('set-printmode').value;
   localStorage.setItem('kasir_cfg', JSON.stringify(cfg));
+  updateCashierPrinterControls();
 }
 
 function saveDrawerConfig() {

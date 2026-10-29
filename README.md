@@ -92,9 +92,10 @@ Ada 2 metode cetak, pilih sesuai kondisi:
 2. Klik **"🔗 Pasangkan Printer Bluetooth"**
 3. Pilih TM58M dari daftar perangkat Bluetooth yang muncul
 4. Ubah **Metode Cetak** ke "Bluetooth langsung"
-5. Setelah transaksi, klik **"📡 Print Bluetooth"** — struk langsung tercetak
+5. Di halaman Kasir, klik **"🔗 Hubungkan Printer TM58M"** dan pilih printer sebelum transaksi/cetak
+6. Setelah transaksi, klik **"📡 Print Bluetooth"** — struk langsung tercetak
    tanpa dialog print
-6. Jika cash drawer tersambung ke port DK printer, opsi **Buka cash drawer otomatis** mengirim pulsa pembuka setelah struk. Pilih Pin 2 (umum) atau Pin 5 sesuai spesifikasi laci/printer.
+7. Jika cash drawer tersambung ke port DK printer, opsi **Buka cash drawer otomatis** mengirim pulsa pembuka setelah struk. Pilih Pin 2 (umum) atau Pin 5 sesuai spesifikasi laci/printer.
 
 ---
 
@@ -114,7 +115,7 @@ Tambah/edit pengguna lewat menu **Pengguna** (khusus admin).
 Menu **Laporan** menampilkan:
 - Total penjualan hari ini, minggu ini, bulan ini
 - Grafik penjualan 7 hari terakhir
-- Produk terlaris bulan ini
+- Produk terlaris hari ini
 - Daftar produk dengan stok menipis (≤5)
 
 ---

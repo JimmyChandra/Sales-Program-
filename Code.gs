@@ -322,45 +322,50 @@ function apiGetDetail_(body) {
 // LAPORAN
 // ─────────────────────────────────────────────────────────────────
 function apiLaporan_(body) {
-  const trx = sheetToObjects_(sh_(SHEET_TRX));
+  // Pakai tanggal_iso dari jalur riwayat agar aturan normalisasi tanggal
+  // laporan dan riwayat selalu identik.
+  const trx = apiGetTransaksi_({});
   const items = sheetToObjects_(sh_(SHEET_TRXITEM));
   const produk = sheetToObjects_(sh_(SHEET_PRODUK));
 
   const now = new Date();
   const todayStr = Utilities.formatDate(now, 'Asia/Jakarta', 'yyyy-MM-dd');
-
-  const startOfWeek = new Date(now);
-  const day = (startOfWeek.getDay() + 6) % 7; // senin=0
-  startOfWeek.setDate(startOfWeek.getDate() - day);
-  const weekStr = Utilities.formatDate(startOfWeek, 'Asia/Jakarta', 'yyyy-MM-dd');
-
+  // tanggal_iso sudah dinormalisasi oleh apiGetTransaksi_ untuk string maupun Date.
+  const trxDated = trx.map(t => ({ ...t, _tanggalIso:t.tanggal_iso || '' }));
+  const trxById = {};
+  trxDated.forEach(t => { trxById[String(t.id)] = t; });
+  const weekStart = new Date(`${todayStr}T00:00:00Z`);
+  const daysSinceMonday = (weekStart.getUTCDay() + 6) % 7;
+  weekStart.setUTCDate(weekStart.getUTCDate() - daysSinceMonday);
+  const weekStr = weekStart.toISOString().slice(0,10);
   const monthStr = Utilities.formatDate(now, 'Asia/Jakarta', 'yyyy-MM');
 
   const sum = arr => arr.reduce((s,t) => s + Number(t.total||0), 0);
 
-  const harian   = trx.filter(t => String(t.tanggal).slice(0,10) === todayStr);
-  const mingguan = trx.filter(t => String(t.tanggal).slice(0,10) >= weekStr);
-  const bulanan  = trx.filter(t => String(t.tanggal).slice(0,7) === monthStr);
+  const harian   = trxDated.filter(t => t._tanggalIso.slice(0,10) === todayStr);
+  const mingguan = trxDated.filter(t => t._tanggalIso.slice(0,10) >= weekStr && t._tanggalIso.slice(0,10) <= todayStr);
+  const bulanan  = trxDated.filter(t => t._tanggalIso.slice(0,7) === monthStr);
 
-  // Produk terlaris (30 transaksi terakhir atau sesuai filter bulan)
+  // Produk terlaris hari ini, mengikuti tanggal transaksi yang sama dengan kartu harian.
   const itemMap = {};
   items.forEach(it => {
-    const trxRef = trx.find(t => Number(t.id) === Number(it.transaksi_id));
-    if (!trxRef || String(trxRef.tanggal).slice(0,7) !== monthStr) return;
+    const trxRef = trxById[String(it.transaksi_id)];
+    if (!trxRef || trxRef._tanggalIso.slice(0,10) !== todayStr) return;
     if (!itemMap[it.nama]) itemMap[it.nama] = { nama: it.nama, qty: 0, nominal: 0 };
     itemMap[it.nama].qty += Number(it.qty);
     itemMap[it.nama].nominal += Number(it.subtotal);
   });
-  const terlaris = Object.values(itemMap).sort((a,b) => b.qty - a.qty).slice(0,10);
+  const terlaris = Object.values(itemMap).sort((a,b) => b.qty - a.qty || b.nominal - a.nominal).slice(0,10);
 
   const stokTipis = produk.filter(p => Number(p.stok) <= 5);
 
   // Grafik 7 hari terakhir
   const grafik7hari = [];
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    const ds = Utilities.formatDate(d, 'Asia/Jakarta', 'yyyy-MM-dd');
-    const totalHari = sum(trx.filter(t => String(t.tanggal).slice(0,10) === ds));
+    const d = new Date(`${todayStr}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - i);
+    const ds = d.toISOString().slice(0,10);
+    const totalHari = sum(trxDated.filter(t => t._tanggalIso.slice(0,10) === ds));
     grafik7hari.push({ tanggal: ds, total: totalHari });
   }
 
